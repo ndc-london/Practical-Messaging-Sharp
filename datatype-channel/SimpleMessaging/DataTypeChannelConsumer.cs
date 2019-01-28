@@ -38,7 +38,7 @@ namespace SimpleMessaging
              /* We choose to base the key off the type name, because we want tp publish to folks interested in this type
               We name the queue after that routing key as we are point-to-point and only expect one queue to receive
              this type of message */
-            var routingKey = nameof(T);
+            var routingKey = typeof(T).Name;
             _queueName = routingKey;
             
             _channel.ExchangeDeclare(ExchangeName, ExchangeType.Direct, durable: false);
@@ -56,9 +56,9 @@ namespace SimpleMessaging
         {
             var result = _channel.BasicGet(_queueName, autoAck: true);
             if (result != null)
-                //TODO: deserialize the message
+                return _messageDeserializer(Encoding.UTF8.GetString(result.Body));
             else
-                return default(T) ;
+                return default(T);
         }   
 
         public void Dispose()

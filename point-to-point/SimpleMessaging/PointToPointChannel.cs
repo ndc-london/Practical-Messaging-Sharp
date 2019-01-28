@@ -37,10 +37,15 @@ namespace SimpleMessaging
             //Because we are point to point, we are just going to use queueName for the routing key
             _routingKey = queueName;
             _queueName = queueName;
-            
+
             //TODO: declare a non-durable direct exchange via the channel
+            _channel.ExchangeDeclare(exchange: ExchangeName, type: ExchangeType.Direct, durable: false, autoDelete: true);
+
             //TODO: declare a non-durable queue. non-exc;usive, that does not auto-delete. Use _queuename
+            _channel.QueueDeclare(queue:_queueName, durable: false, exclusive: false, autoDelete: false);
+
             //TODO: bind _queuename to _routingKey on the exchange
+            _channel.QueueBind(queue: _queueName, exchange: ExchangeName, routingKey: _routingKey);
        }
 
         /// <summary>
@@ -52,7 +57,9 @@ namespace SimpleMessaging
         public void Send(string message)
         {
             var body = Encoding.UTF8.GetBytes(message);
+
             //TODO: Publish on the exchange using the routing key
+            _channel.BasicPublish(exchange: ExchangeName, routingKey: _routingKey, body: body);
         }
 
         /// <summary>
@@ -64,10 +71,18 @@ namespace SimpleMessaging
         public string Receive()
         {
             //TODO: Use basic get to read a message, don't auto acknowledge the message
-            //var result = 
-            //if (result != null)
-            //    return Encoding.UTF8.GetString(result.Body);
-            //else
+            // When 'autoAck' is false in RabbitMQ console - the status was "Ready: 1, Unack: 0, Total: 1" - when I'd
+            // expect "Ready: 1, Unack: 1, Total: 1" - apparently 'BasicGet' does polling?
+            var result = _channel.BasicGet(queue: _queueName, autoAck: true);
+            
+            
+            if (result != null)
+            {
+                var msg = Encoding.UTF8.GetString(result.Body);
+                //_channel.BasicAck(result.DeliveryTag, multiple: false); // when 'autoAck: false' above
+                return msg;
+            }              
+            else
                 return null;
         }   
 

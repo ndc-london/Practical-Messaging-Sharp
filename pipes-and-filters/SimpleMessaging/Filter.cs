@@ -39,7 +39,7 @@ namespace SimpleMessaging
             var task = Task.Factory.StartNew(() =>
                 {
                     ct.ThrowIfCancellationRequested();
-                    
+
                     /*TODO
                      *
                      * Create an in pipe from a DataTypeChannelConsumer
@@ -55,7 +55,29 @@ namespace SimpleMessaging
                      *     check for a cancelled token
                      * displose of the consumer
                      */
-               }, ct
+                    var inPipe = new DataTypeChannelConsumer<TIn>(messageDeserializer: _messageDeserializer, hostName: _hostName);
+
+                    while(true)
+                    {
+                        var message = inPipe.Receive();
+
+                        if (message != null)
+                        {
+                            TOut enrichedMsg = _operation.Execute(message);
+
+                            using (var outPipe = new DataTypeChannelProducer<TOut>(messageSerializer: _messasgeSerializer, hostName: _hostName))
+                            {
+                                outPipe.Send(enrichedMsg);
+                            }
+                        }
+                        else
+                        {
+                            Task.Delay(1000, ct).Wait();
+                        }
+
+                        ct.ThrowIfCancellationRequested();
+                    }
+                   }, ct
             );
             return task;
         }

@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace SimpleMessaging
 {
-    public class PollingConsumer<T> where T: IAmAMessage
+    public class PollingConsumer<T> where T : IAmAMessage
     {
         private readonly IAmAHandler<T> _messageHandler;
         private readonly Func<string, T> _messageSerializer;
@@ -16,7 +16,7 @@ namespace SimpleMessaging
             _messageSerializer = messageSerializer;
             _hostName = hostName;
         }
-        
+
         public Task Run(CancellationToken ct)
         {
             /*
@@ -32,6 +32,27 @@ namespace SimpleMessaging
              *     dispose of the channel
              *  return the task
              */
+
+            var task = Task.Factory.StartNew(() =>
+            {
+                ct.ThrowIfCancellationRequested();
+
+                // create a data type channel consumer
+                using (var consumer = new DataTypeChannelConsumer<T>(_messageSerializer, _hostName))
+                {
+                    while (true)
+                    {
+                        var message = consumer.Receive();
+                        _messageHandler.Handle(message);
+
+                        Task.Delay(1000, ct).Wait();
+
+                        ct.ThrowIfCancellationRequested();
+                    }
+                }
+            }, cancellationToken: ct);
+
+            return task;
         }
     }
 }

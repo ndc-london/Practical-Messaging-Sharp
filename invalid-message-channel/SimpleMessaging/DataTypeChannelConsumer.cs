@@ -47,23 +47,32 @@ namespace SimpleMessaging
              /* We choose to base the key off the type name, because we want tp publish to folks interested in this type
               We name the queue after that routing key as we are point-to-point and only expect one queue to receive
              this type of message */
-            var routingKey = "Invalid-Message-Channel." + typeof(T).FullName;
+            var routingKey = typeof(T).FullName;
             _queueName = routingKey;
 
             var invalidRoutingKey = "invalid." + routingKey;
             var invalidMessageQueueName = invalidRoutingKey;
-            
+
             //TODO create an argument dictionary, that has arguments for the invalid message exchange and routing key
-           
+            var arguments = new Dictionary<string, object>()
+            {
+                {"x-dead-letter-exchange", InvalidMessageExchangeName},
+                {"x-dead-letter-routing-key", invalidRoutingKey }
+            };
+
             //TODO: Create our consumer queue, but add the arguments that hook up the invalid message queue (tip might be calle deal letter in RMQ docs)
-            _channel.QueueBind(queue:_queueName, exchange: ExchangeName, routingKey: routingKey);
-            
+            _channel.QueueBind(queue:_queueName, exchange: ExchangeName, routingKey: routingKey, arguments: arguments);
+
             //declare a queue for invalid messages off an invalid message exchange
             //messages that we nack without requeue will go here
             // TODO; Declare an invalid message queue exchange, direct and durable
+            _channel.ExchangeDeclare(exchange: InvalidMessageExchangeName, type: ExchangeType.Direct, durable: true);
+
             // TODO: declare an invalid message queue, durable
+            _channel.QueueDeclare(queue: invalidMessageQueueName, durable: true);
+
             // TODO: bind the queue to the exchange
- 
+            _channel.QueueBind(queue: invalidMessageQueueName, exchange: InvalidMessageExchangeName, routingKey: invalidRoutingKey);
         }
 
         /// <summary>
